@@ -108,6 +108,7 @@ def create_inventory_bottle(db: Session, bottle: schemas.InventoryBottleCreate):
         db.commit()
         db.refresh(db_bottle)
         print("Successfully created new bottle")
+        update_all_snapshots_today(db)
         return db_bottle
     except Exception as e:
         print(f"Error creating bottle: {str(e)}")
@@ -118,13 +119,62 @@ def create_inventory_bottle(db: Session, bottle: schemas.InventoryBottleCreate):
         )
 
 def delete_inventory_bottle(db: Session, bottle_id: int):
+    print(f"\n=== Starting delete_inventory_bottle for id={bottle_id} ===")
+    
+    # Находим бутылку по ID
     db_bottle = db.query(models.InventoryBottle).filter(models.InventoryBottle.id == bottle_id).first()
+    print(f"Found bottle: {db_bottle}")
+    
     if db_bottle:
-        db.delete(db_bottle)
-        db.commit()
-        update_all_snapshots_today(db)
-        return True
-    return False
+        name = db_bottle.name
+        color = db_bottle.color
+        volume = db_bottle.volume
+        
+        print(f"Deleting bottle: name='{name}', color='{color}', volume={volume}")
+        
+        # Удаляем все бутылки с такими же name/color/volume
+        deleted_bottles = db.query(models.InventoryBottle).filter(
+            models.InventoryBottle.name == name,
+            models.InventoryBottle.color == color,
+            models.InventoryBottle.volume == volume
+        ).delete(synchronize_session=False)
+        print(f"Deleted {deleted_bottles} bottles from inventory")
+        
+        # Удаляем все снапшоты для этой позиции за сегодня
+        today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        print(f"Deleting snapshots for date {today}")
+        
+        deleted_snapshots = db.query(models.InventorySnapshot).filter(
+            models.InventorySnapshot.name == name,
+            models.InventorySnapshot.color == color,
+            models.InventorySnapshot.volume == volume,
+            models.InventorySnapshot.date == today
+        ).delete(synchronize_session=False)
+        print(f"Deleted {deleted_snapshots} snapshots")
+        
+        try:
+            db.commit()
+            print("Database commit successful")
+            
+            # Создаем новый снапшот с count=0
+            snap = schemas.InventorySnapshotCreate(
+                name=name,
+                color=color,
+                volume=volume,
+                count=0,
+                date=today
+            )
+            result = create_or_update_snapshot(db, snap)
+            print(f"Created/updated snapshot with id={result.id}, count={result.count}")
+            print("=== Delete operation completed successfully ===\n")
+            return True
+        except Exception as e:
+            print(f"Error during delete operation: {str(e)}")
+            db.rollback()
+            return False
+    else:
+        print(f"Bottle with id={bottle_id} not found")
+        return False
 
 def open_inventory_bottle(db: Session, bottle_id: int):
     db_bottle = db.query(models.InventoryBottle).filter(models.InventoryBottle.id == bottle_id).first()
@@ -153,6 +203,7 @@ def open_inventory_bottle(db: Session, bottle_id: int):
 
 def create_or_update_snapshot(db: Session, snapshot: schemas.InventorySnapshotCreate):
     # Проверяем, есть ли уже снапшот на эту дату для этой позиции
+    print(f"Trying to create/update snapshot: {snapshot.name}, count={snapshot.count}, date={snapshot.date}")
     db_snapshot = db.query(models.InventorySnapshot).filter(
         models.InventorySnapshot.name == snapshot.name,
         models.InventorySnapshot.color == snapshot.color,
@@ -160,8 +211,10 @@ def create_or_update_snapshot(db: Session, snapshot: schemas.InventorySnapshotCr
         models.InventorySnapshot.date == snapshot.date
     ).first()
     if db_snapshot:
+        print(f"Found existing snapshot with count={db_snapshot.count}, updating to count={snapshot.count}")
         db_snapshot.count = snapshot.count
     else:
+        print("Creating new snapshot")
         db_snapshot = models.InventorySnapshot(**snapshot.model_dump())
         db.add(db_snapshot)
     db.commit()

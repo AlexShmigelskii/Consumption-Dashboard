@@ -125,9 +125,11 @@ async def create_inventory_bottle(bottle: schemas.InventoryBottleCreate, db: Ses
 
 @app.delete("/inventory/{bottle_id}")
 def delete_inventory_bottle(bottle_id: int, db: Session = Depends(get_db)):
+    print(f"DELETE request received for bottle_id: {bottle_id}")  # debug log
     success = crud.delete_inventory_bottle(db, bottle_id)
     if not success:
         raise HTTPException(status_code=404, detail="Inventory bottle not found")
+    print(f"Bottle {bottle_id} deleted successfully")  # debug log
     return {"message": "Inventory bottle deleted successfully"}
 
 @app.post("/inventory/{bottle_id}/open", response_model=schemas.Bottle)

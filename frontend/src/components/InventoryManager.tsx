@@ -40,8 +40,18 @@ export function InventoryManager() {
   });
 
   const { mutate: deleteBottle } = useMutation({
-    mutationFn: (id: number) => api.inventory.delete(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['inventory'] }),
+    mutationFn: (id: number) => {
+      console.log('Starting delete mutation for bottle:', id);
+      return api.inventory.delete(id);
+    },
+    onSuccess: () => {
+      console.log('Delete mutation successful');
+      queryClient.invalidateQueries({ queryKey: ['inventory'] });
+      queryClient.invalidateQueries({ queryKey: ['inventory_snapshots'] });
+    },
+    onError: (error) => {
+      console.error('Delete mutation failed:', error);
+    }
   });
 
   return (

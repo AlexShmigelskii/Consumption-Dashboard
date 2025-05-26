@@ -5,7 +5,7 @@ import { wsClient } from '../api/websocket';
 import { BottleCard } from './BottleCard';
 import { ConsumptionChart } from './ConsumptionChart';
 import { LeftoverChart } from './LeftoverChart';
-import type { InventoryBottle } from '../types';
+import type { InventoryBottle, InventorySnapshot } from '../types';
 
 export function Dashboard() {
   const queryClient = useQueryClient();
@@ -17,6 +17,16 @@ export function Dashboard() {
     queryKey: ['inventory'],
     queryFn: api.inventory.list,
   });
+
+  // Получаем leftover на сегодня из InventorySnapshot (вынесено выше всех return)
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const { data: todaySnapshotsRaw } = useQuery({
+    queryKey: ['inventory_snapshots', todayStr, todayStr],
+    queryFn: () => api.inventory_snapshots.list(todayStr, todayStr),
+  });
+  const todaySnapshots = Array.isArray(todaySnapshotsRaw) ? todaySnapshotsRaw : [];
+  // debug
+  // console.log('todaySnapshots', todaySnapshots);
 
   const [tab, setTab] = useState<'consumption' | 'leftover'>('leftover');
   const [selectedBottle, setSelectedBottle] = useState<string>('All');
@@ -32,6 +42,7 @@ export function Dashboard() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['bottles'] });
       queryClient.invalidateQueries({ queryKey: ['inventory'] });
+      queryClient.invalidateQueries({ queryKey: ['inventory_snapshots'] });
       setOpenError(null);
     },
     onError: (e: any) => setOpenError(e?.response?.data?.detail || 'No bottles left in inventory'),
@@ -53,9 +64,27 @@ export function Dashboard() {
     );
   }
 
+  // Фильтрация снапшотов по selectedBottle
+  let leftoverToday = 0;
+  if (selectedBottle === 'All') {
+    leftoverToday = todaySnapshots.reduce((sum, s) => sum + s.count * s.volume, 0);
+  } else {
+    leftoverToday = todaySnapshots
+      .filter(s => s.name === selectedBottle)
+      .reduce((sum, s) => sum + s.count * s.volume, 0);
+  }
+
+  // Summary calculations (только по снапшотам)
+  const remainingStock = leftoverToday;
+
   // Фильтрация бутылок и событий по выбранной бутылке
   const filteredBottles = selectedBottle === 'All' ? bottles : bottles.filter(b => b.name === selectedBottle);
   const filteredEvents = filteredBottles.flatMap(b => b.opening_events);
+
+  // Фильтрация inventory по selectedBottle
+  const filteredInventory = selectedBottle === 'All'
+    ? inventory
+    : inventory.filter(b => b.name === selectedBottle);
 
   // Summary calculations (по filteredEvents)
   const now = new Date();
@@ -64,7 +93,6 @@ export function Dashboard() {
   const monthEvents = filteredEvents.filter(e => e.timestamp.slice(0, 10) >= monthStr);
   const currentMonthUsage = monthEvents.reduce((sum, e) => sum + e.volume_used, 0);
   const bottlesOpened = monthEvents.length;
-  const remainingStock = filteredBottles.reduce((sum, b) => sum + b.current_volume, 0) + inventory.reduce((sum, b) => sum + b.volume * b.count, 0);
   const daysInMonth = Math.max(1, now.getDate());
   const dailyAverage = currentMonthUsage / daysInMonth;
 

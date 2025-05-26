@@ -45,7 +45,14 @@ export const api = {
       return response.data;
     },
     delete: async (id: number) => {
-      await axios.delete(`${API_URL}/inventory/${id}`);
+      console.log('Deleting inventory bottle with id:', id);
+      try {
+        await axios.delete(`${API_URL}/inventory/${id}`);
+        console.log('Successfully deleted inventory bottle');
+      } catch (error) {
+        console.error('Error deleting inventory bottle:', error);
+        throw error;
+      }
     },
     open: async (id: number) => {
       await axios.post(`${API_URL}/inventory/${id}/open`);

@@ -5,6 +5,7 @@ from typing import List
 from . import crud, models, schemas
 from .database import engine, get_db
 from .websocket import manager
+from datetime import datetime
 
 models.Base.metadata.create_all(bind=engine)
 
@@ -134,4 +135,15 @@ def open_inventory_bottle(bottle_id: int, db: Session = Depends(get_db)):
     bottle = crud.open_inventory_bottle(db, bottle_id)
     if not bottle:
         raise HTTPException(status_code=400, detail="No bottles left in inventory")
-    return bottle 
+    return bottle
+
+@app.post("/inventory_snapshots/", response_model=schemas.InventorySnapshot)
+def create_or_update_snapshot(snapshot: schemas.InventorySnapshotCreate, db: Session = Depends(get_db)):
+    return crud.create_or_update_snapshot(db, snapshot)
+
+@app.get("/inventory_snapshots/", response_model=List[schemas.InventorySnapshot])
+def read_snapshots(start_date: str, end_date: str, db: Session = Depends(get_db)):
+    # start_date, end_date: YYYY-MM-DD
+    start = datetime.fromisoformat(start_date)
+    end = datetime.fromisoformat(end_date)
+    return crud.get_snapshots_for_period(db, start, end) 

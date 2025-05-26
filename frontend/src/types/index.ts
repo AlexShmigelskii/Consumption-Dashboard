@@ -32,4 +32,13 @@ export interface InventoryBottle {
   volume: number;
   count: number;
   created_at: string;
+}
+
+export interface InventorySnapshot {
+  id: number;
+  name: string;
+  color?: string;
+  volume: number;
+  count: number;
+  date: string;
 } 

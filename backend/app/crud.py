@@ -3,6 +3,7 @@ from . import models, schemas
 from typing import List, Optional
 from fastapi import HTTPException
 import logging
+from datetime import datetime
 
 logger = logging.getLogger("uvicorn")
 
@@ -121,6 +122,7 @@ def delete_inventory_bottle(db: Session, bottle_id: int):
     if db_bottle:
         db.delete(db_bottle)
         db.commit()
+        update_all_snapshots_today(db)
         return True
     return False
 
@@ -146,4 +148,50 @@ def open_inventory_bottle(db: Session, bottle_id: int):
     db.add(event)
     db.commit()
     db.refresh(event)
-    return new_bottle 
+    update_all_snapshots_today(db)
+    return new_bottle
+
+def create_or_update_snapshot(db: Session, snapshot: schemas.InventorySnapshotCreate):
+    # Проверяем, есть ли уже снапшот на эту дату для этой позиции
+    db_snapshot = db.query(models.InventorySnapshot).filter(
+        models.InventorySnapshot.name == snapshot.name,
+        models.InventorySnapshot.color == snapshot.color,
+        models.InventorySnapshot.volume == snapshot.volume,
+        models.InventorySnapshot.date == snapshot.date
+    ).first()
+    if db_snapshot:
+        db_snapshot.count = snapshot.count
+    else:
+        db_snapshot = models.InventorySnapshot(**snapshot.model_dump())
+        db.add(db_snapshot)
+    db.commit()
+    db.refresh(db_snapshot)
+    return db_snapshot
+
+def get_snapshots_for_period(db: Session, start_date, end_date):
+    return db.query(models.InventorySnapshot).filter(
+        models.InventorySnapshot.date >= start_date,
+        models.InventorySnapshot.date <= end_date
+    ).order_by(models.InventorySnapshot.date).all()
+
+def create_inventory_event(db: Session, event: schemas.InventoryEventCreate):
+    db_event = models.InventoryEvent(**event.model_dump())
+    db.add(db_event)
+    db.commit()
+    db.refresh(db_event)
+    # После любого пополнения — обновляем снапшоты на сегодня
+    update_all_snapshots_today(db)
+    return db_event
+
+def update_all_snapshots_today(db: Session):
+    today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    inventory = db.query(models.InventoryBottle).all()
+    for b in inventory:
+        snap = schemas.InventorySnapshotCreate(
+            name=b.name,
+            color=b.color,
+            volume=b.volume,
+            count=b.count,
+            date=today
+        )
+        create_or_update_snapshot(db, snap) 

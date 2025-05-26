@@ -51,4 +51,13 @@ export const api = {
       await axios.post(`${API_URL}/inventory/${id}/open`);
     },
   },
+
+  inventory_snapshots: {
+    list: async (start_date: string, end_date: string) => {
+      const response = await axios.get(`${API_URL}/inventory_snapshots/`, {
+        params: { start_date, end_date }
+      });
+      return response.data;
+    },
+  },
 }; 

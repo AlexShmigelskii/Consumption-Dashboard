@@ -1,12 +1,12 @@
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
-import type { Bottle, InventoryBottle } from '../types';
+import type { InventorySnapshot } from '../types';
+import { useQuery } from '@tanstack/react-query';
+import { api } from '../api';
 
 interface Props {
-  bottles: Bottle[];
-  inventory: InventoryBottle[];
+  selectedName: string;
 }
 
-// Генерируем массив дат за последний месяц
 function getLast30Days(): string[] {
   const days: string[] = [];
   const now = new Date();
@@ -18,95 +18,31 @@ function getLast30Days(): string[] {
   return days;
 }
 
-export function LeftoverChart({ bottles, inventory }: Props) {
+export function LeftoverChart({ selectedName }: Props) {
   const days = getLast30Days();
+  const start_date = days[0];
+  const end_date = days[days.length - 1];
+  const { data: snapshots = [] } = useQuery({
+    queryKey: ['inventory_snapshots', start_date, end_date],
+    queryFn: () => api.inventory_snapshots.list(start_date, end_date),
+  });
 
-  // Для каждой бутылки определяем дату открытия (по первому событию)
-  const bottleOpenDate: Record<number, string> = {};
-  bottles.forEach(b => {
-    if (b.opening_events.length > 0) {
-      const openEvent = b.opening_events.find(e => Math.abs(e.volume_used - b.initial_volume) < 1e-3);
-      if (openEvent) bottleOpenDate[b.id] = openEvent.timestamp.slice(0, 10);
-      else bottleOpenDate[b.id] = b.created_at.slice(0, 10);
-    } else {
-      bottleOpenDate[b.id] = b.created_at.slice(0, 10);
+  // Группируем снапшоты по дате
+  const byDate: Record<string, InventorySnapshot[]> = {};
+  (snapshots as InventorySnapshot[]).forEach((snap: InventorySnapshot) => {
+    const date = snap.date.slice(0, 10);
+    if (!byDate[date]) byDate[date] = [];
+    byDate[date].push(snap);
+  });
+
+  // Для каждого дня считаем общий leftover, с фильтрацией по selectedName
+  const dayData: { date: string; leftover: number }[] = days.map(date => {
+    let snaps = byDate[date] || [];
+    if (selectedName !== 'All') {
+      snaps = snaps.filter(s => s.name === selectedName);
     }
-  });
-
-  // Для каждой позиции inventory считаем сколько раз была открыта за 30 дней
-  function getInventoryKey(b: InventoryBottle) {
-    return `${b.name}|${b.volume}`;
-  }
-  function getBottleKey(b: Bottle) {
-    return `${b.name}|${b.initial_volume}`;
-  }
-  // 1. Считаем сколько открытий каждой позиции было за 30 дней
-  const openedCountByKey: Record<string, number> = {};
-  bottles.forEach(b => {
-    const openDate = bottleOpenDate[b.id];
-    if (openDate && openDate >= days[0]) {
-      const key = getBottleKey(b);
-      openedCountByKey[key] = (openedCountByKey[key] || 0) + 1;
-    }
-  });
-  // 2. Для каждого дня считаем сколько открытий было до этого дня
-  const openedToDateByKey: Record<string, number[]> = {};
-  inventory.forEach(b => {
-    const key = getInventoryKey(b);
-    let arr: number[] = [];
-    let acc = 0;
-    days.forEach(date => {
-      // Считаем сколько открытий этой позиции было до и включая этот день
-      let openedToday = bottles.filter(ob => {
-        const openDate = bottleOpenDate[ob.id];
-        return (
-          getBottleKey(ob) === key && openDate && openDate <= date && openDate >= days[0]
-        );
-      }).length;
-      acc = openedToday;
-      arr.push(acc);
-    });
-    openedToDateByKey[key] = arr;
-  });
-
-  // Для каждой бутылки собираем события расхода по дням
-  const bottleEventsByDay: Record<number, Record<string, number>> = {};
-  bottles.forEach(b => {
-    bottleEventsByDay[b.id] = {};
-    b.opening_events.forEach(e => {
-      const date = e.timestamp.slice(0, 10);
-      bottleEventsByDay[b.id][date] = (bottleEventsByDay[b.id][date] || 0) + e.volume_used;
-    });
-  });
-
-  // Для каждого дня считаем остаток: inventory + открытые бутылки (остаток в них)
-  const dayData: { date: string; leftover: number }[] = [];
-  days.forEach((date, idx) => {
-    // 1. Инвентарь: реконструируем начальный count
-    let invLeft = 0;
-    inventory.forEach(b => {
-      const key = getInventoryKey(b);
-      const openedTotal = openedCountByKey[key] || 0;
-      const openedToDate = openedToDateByKey[key][idx] || 0;
-      const initialCount = b.count + openedTotal;
-      const left = Math.max(0, initialCount - openedToDate);
-      invLeft += left * b.volume;
-    });
-    // 2. Открытые бутылки: остаток в каждой, если она была открыта к этому дню
-    let openLeft = 0;
-    bottles.forEach(b => {
-      const openDate = bottleOpenDate[b.id];
-      if (openDate && openDate <= date) {
-        // Считаем расход по этой бутылке до этой даты
-        let spent = 0;
-        b.opening_events.forEach(e => {
-          const eDate = e.timestamp.slice(0, 10);
-          if (eDate <= date) spent += e.volume_used;
-        });
-        openLeft += Math.max(0, b.initial_volume - spent);
-      }
-    });
-    dayData.push({ date, leftover: invLeft + openLeft });
+    const leftover = snaps.reduce((sum, s) => sum + s.count * s.volume, 0);
+    return { date, leftover };
   });
 
   return (

@@ -77,4 +77,33 @@ class InventoryBottleCreate(InventoryBottleBase):
 class InventoryBottle(InventoryBottleBase):
     model_config = ConfigDict(from_attributes=True)
     id: int
-    created_at: datetime 
+    created_at: datetime
+
+class InventorySnapshotBase(BaseModel):
+    name: str
+    color: str | None = None
+    volume: float
+    count: int
+    date: datetime
+
+class InventorySnapshotCreate(InventorySnapshotBase):
+    pass
+
+class InventorySnapshot(InventorySnapshotBase):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+
+class InventoryEventBase(BaseModel):
+    name: str
+    color: str | None = None
+    volume: float
+    count: int
+    type: str = "add"
+
+class InventoryEventCreate(InventoryEventBase):
+    pass
+
+class InventoryEvent(InventoryEventBase):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    timestamp: datetime 

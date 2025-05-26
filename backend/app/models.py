@@ -42,3 +42,24 @@ class InventoryBottle(Base):
               unique=True
         ),
     ) 
+
+class InventorySnapshot(Base):
+    __tablename__ = "inventory_snapshots"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False)
+    color = Column(String, nullable=True)
+    volume = Column(Float, nullable=False)
+    count = Column(Integer, nullable=False)
+    date = Column(DateTime(timezone=True), index=True)  # дата snapshot 
+
+class InventoryEvent(Base):
+    __tablename__ = "inventory_events"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False)
+    color = Column(String, nullable=True)
+    volume = Column(Float, nullable=False)
+    count = Column(Integer, nullable=False)  # +N для пополнения, -N для списания
+    timestamp = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+    type = Column(String, nullable=False, default="add")  # 'add' или 'remove' 

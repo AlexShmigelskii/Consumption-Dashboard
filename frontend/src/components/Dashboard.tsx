@@ -107,7 +107,7 @@ export function Dashboard() {
         <div className="flex-1 min-w-0">
           <div className="h-[66vh] w-full">
             {tab === 'leftover' ? (
-              <LeftoverChart bottles={filteredBottles} inventory={inventory} />
+              <LeftoverChart selectedName={selectedBottle} />
             ) : (
               <ConsumptionChart events={filteredEvents} />
             )}

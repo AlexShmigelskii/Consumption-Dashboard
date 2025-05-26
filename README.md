@@ -1,21 +1,46 @@
 # Consumption Dashboard
 
 ## Project Description
-A web service for tracking 3D printer photopolymer consumption. Operators log bottle openings, visualize monthly usage trends, and forecast depletion dates.
+A web service for tracking 3D printer photopolymer consumption. The system helps operators monitor resin usage, manage inventory, and predict when stocks need replenishment.
 
 ## Main Features
-- Monthly consumption line chart (default view)
-- Bottle buttons to log opening events.
-- Trendline and depletion-date forecast overlay
-- Initial stock setup form at first launch for entering current volumes
-- Settings page for bottle management and chart customization (future version)
+- **Inventory Management:**
+  - Add/remove bottles with color and volume tracking
+  - Track bottle count in stock
+  - Open bottles from inventory
+
+- **Usage Tracking:**
+  - Log bottle openings and consumption
+  - Track consumption per bottle type
+  - Filter data by bottle type
+
+- **Analytics:**
+  - Stock dynamics visualization (30-day history)
+  - Current month usage statistics
+  - Daily average consumption (90-day rolling average)
+  - Stock depletion forecast
+  - Remaining stock calculation
+
+- **Real-time Updates:**
+  - WebSocket-based live updates
+  - Instant reflection of inventory changes
+  - Immediate consumption data updates
 
 ## Technical Stack
-- **Frontend:** React (TypeScript), Vite, Tailwind CSS, Recharts, React Query, WebSocket  
-- **Backend:** Python, FastAPI, SQLAlchemy  
-- **Database:** PostgreSQL  
-- **Infrastructure & Deployment:** Docker, Railway  
-- **CI/CD:** GitHub Actions
+- **Frontend:** 
+  - React 18 with TypeScript
+  - Vite for build tooling
+  - Tailwind CSS for styling
+  - Recharts for data visualization
+  - React Query for data management
+  - WebSocket for real-time updates
+
+- **Backend:**
+  - FastAPI (Python 3.11+)
+  - SQLAlchemy ORM
+  - PostgreSQL database
+  - Pydantic for data validation
+  - Async/await support
 
 ## Installation & Setup
 

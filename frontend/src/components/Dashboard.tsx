@@ -88,13 +88,29 @@ export function Dashboard() {
 
   // Summary calculations (по filteredEvents)
   const now = new Date();
+  const ninetyDaysAgo = new Date(now);
+  ninetyDaysAgo.setDate(now.getDate() - 90);
+  const ninetyDaysStr = ninetyDaysAgo.toISOString().slice(0, 10);
+  
+  // Используем события за последние 90 дней для расчета среднего
+  const ninetyDaysEvents = filteredEvents.filter(e => e.timestamp.slice(0, 10) >= ninetyDaysStr);
+  const ninetyDaysUsage = ninetyDaysEvents.reduce((sum, e) => sum + e.volume_used, 0);
+  const dailyAverage = ninetyDaysUsage / 90; // мл в день
+
+  // Для отображения текущего месяца (не влияет на прогноз)
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
   const monthStr = monthStart.toISOString().slice(0, 10);
   const monthEvents = filteredEvents.filter(e => e.timestamp.slice(0, 10) >= monthStr);
   const currentMonthUsage = monthEvents.reduce((sum, e) => sum + e.volume_used, 0);
   const bottlesOpened = monthEvents.length;
-  const daysInMonth = Math.max(1, now.getDate());
-  const dailyAverage = currentMonthUsage / daysInMonth;
+
+  // Функция для округления до ближайших 0.5 месяцев
+  const roundToHalfMonth = (months: number) => Math.round(months * 2) / 2;
+
+  // Расчет прогноза в месяцах (30 дней в месяце)
+  const monthsLeft = dailyAverage > 0 
+    ? roundToHalfMonth(remainingStock / dailyAverage / 30)
+    : Infinity;
 
   return (
     <div className="w-screen px-2 lg:px-4 py-8 flex flex-col gap-8 overflow-x-hidden">
@@ -174,11 +190,23 @@ export function Dashboard() {
         </div>
         <div>
           <div className="text-sm text-gray-500">Remaining Stock</div>
-          <div className="text-2xl	font-bold">{(remainingStock / 1000).toFixed(1)} L</div>
+          <div className="text-2xl font-bold">{(remainingStock / 1000).toFixed(1)} L</div>
+          {dailyAverage > 0 && (
+            <div className={`text-xs ${
+              monthsLeft < 1 ? 'text-red-500' : 'text-gray-400'
+            }`}>
+              Sufficient for ~{
+                monthsLeft < 1
+                  ? 'less than a month'
+                  : `${monthsLeft.toFixed(1)} months`
+              }
+            </div>
+          )}
         </div>
         <div>
           <div className="text-sm text-gray-500">Daily Average</div>
-          <div className="text-2xl font-bold">{dailyAverage.toFixed(0)} ml</div>
+          <div className="text-2xl font-bold">{Math.round(dailyAverage)} ml</div>
+          <div className="text-xs text-gray-400">(last 90 days)</div>
         </div>
       </div>
     </div>

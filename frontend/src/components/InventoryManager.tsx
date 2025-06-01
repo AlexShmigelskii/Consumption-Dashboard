@@ -1,11 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api';
-import type { InventoryBottle } from '../types';
-
-const COLORS = [
-  'Red', 'Blue', 'Green', 'Yellow', 'Black', 'White', 'Gray', 'Orange', 'Purple', 'Pink', 'Brown', 'Transparent'
-];
 
 export function InventoryManager() {
   const queryClient = useQueryClient();

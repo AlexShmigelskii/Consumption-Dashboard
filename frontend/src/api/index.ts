@@ -1,7 +1,9 @@
 import axios from 'axios';
 import type { Bottle, OpeningEvent, InventoryBottle } from '../types';
 
-const API_URL = 'http://localhost:8000';
+// Автоматически определяем адрес backend для production и dev
+const API_HOST = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
+const API_URL = `http://${API_HOST}:8000`;
 
 export const api = {
   bottles: {

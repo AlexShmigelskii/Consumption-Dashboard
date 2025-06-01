@@ -2,10 +2,8 @@ import { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api';
 import { wsClient } from '../api/websocket';
-import { BottleCard } from './BottleCard';
 import { ConsumptionChart } from './ConsumptionChart';
 import { LeftoverChart } from './LeftoverChart';
-import type { InventoryBottle, InventorySnapshot } from '../types';
 
 export function Dashboard() {
   const queryClient = useQueryClient();
@@ -80,11 +78,6 @@ export function Dashboard() {
   // Фильтрация бутылок и событий по выбранной бутылке
   const filteredBottles = selectedBottle === 'All' ? bottles : bottles.filter(b => b.name === selectedBottle);
   const filteredEvents = filteredBottles.flatMap(b => b.opening_events);
-
-  // Фильтрация inventory по selectedBottle
-  const filteredInventory = selectedBottle === 'All'
-    ? inventory
-    : inventory.filter(b => b.name === selectedBottle);
 
   // Summary calculations (по filteredEvents)
   const now = new Date();

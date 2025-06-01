@@ -1,23 +1,28 @@
+import csv
+from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 from app.database import SessionLocal, engine
-from app.models import Base, Bottle, OpeningEvent, InventoryEvent, InventorySnapshot, InventoryBottle
-from app.crud import create_or_update_snapshot
-from datetime import datetime, timedelta
-import random
+from app.models import (
+    Base, Bottle, OpeningEvent,
+    InventoryEvent, InventorySnapshot,
+    InventoryBottle
+)
 
-# Drop and recreate all tables
+# --- 1. Сброс и создание таблиц ---
 Base.metadata.drop_all(bind=engine)
 Base.metadata.create_all(bind=engine)
 
 def update_all_snapshots_for_date(db: Session, date: datetime):
-    # Считаем остатки по InventoryEvent на эту дату
-    # Для каждой уникальной позиции (name, color, volume) считаем сумму всех пополнений до этой даты
+    """
+    Аггрегирует все InventoryEvent до заданной даты (включительно)
+    и сохраняет/обновляет запись в InventorySnapshot.
+    """
     events = db.query(InventoryEvent).filter(InventoryEvent.timestamp <= date).all()
     stock = {}
     for ev in events:
         key = (ev.name, ev.color, ev.volume)
         stock[key] = stock.get(key, 0) + ev.count
-    # Для каждой позиции сохраняем снапшот
+
     for (name, color, volume), count in stock.items():
         snap = InventorySnapshot(
             name=name,
@@ -29,96 +34,118 @@ def update_all_snapshots_for_date(db: Session, date: datetime):
         db.merge(snap)
     db.commit()
 
-def seed_data():
+
+def seed_data_from_csv(csv_path: str):
     db = SessionLocal()
     try:
+        # --- Очищаем старые данные ---
         db.query(OpeningEvent).delete()
         db.query(Bottle).delete()
         db.query(InventoryEvent).delete()
         db.query(InventorySnapshot).delete()
+        db.query(InventoryBottle).delete()
         db.commit()
 
-        today = datetime(2025, 5, 26)
-        start_date = today - timedelta(days=29)
-        days = [start_date + timedelta(days=i) for i in range(30)]
+        # --- Параметры продуктов ---
+        sunlu = {
+            'name': 'SUNLU',
+            'color': 'Solid Grey',
+            'volume': 1000
+        }
+        elegoo = {
+            'name': 'ELEGOO',
+            'color': 'Ceramic Grey',
+            'volume': 1000
+        }
 
-        black_volume = 1000
-        clear_volume = 500
-        black_name = "Resin Black"
-        clear_name = "Resin Clear"
-        black_color = "Black"
-        clear_color = "Transparent"
+        # --- Чтение CSV и подсчёт расхода по датам ---
+        consumption = {}  # {date: count}
+        with open(csv_path, newline='', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                date_str = row.get('Date d’ouverture')
+                cnt = row.get('Bouteilles ouvertes')
+                if not date_str or not cnt:
+                    continue
+                used = int(float(cnt))
+                if used <= 0:
+                    continue
+                date = datetime.strptime(date_str, '%d/%m/%y')
+                consumption[date] = consumption.get(date, 0) + used
 
-        # 1. Пополнение склада: в начале периода 3 Black, 5 Clear
+        if not consumption:
+            raise ValueError('Нет данных о расходе в CSV')
+
+        # --- Определяем диапазон дат ---
+        init_date = min(consumption.keys())  # 07/04/25
+        last_date = max(consumption.keys())
+        total_consumed = sum(consumption.values())
+
+        # --- Приход на начальную дату ---
+        # SUNLU: добавлено 38 бутылок (30 использовано + 8 осталось)
         db.add(InventoryEvent(
-            name=black_name, color=black_color, volume=black_volume, count=3, timestamp=days[0], type="add"
+            name=sunlu['name'], color=sunlu['color'],
+            volume=sunlu['volume'], count=total_consumed + 8,
+            timestamp=init_date, type='add'
         ))
+        # ELEGOO: добавлено 30 бутылок, не использовались
         db.add(InventoryEvent(
-            name=clear_name, color=clear_color, volume=clear_volume, count=5, timestamp=days[0], type="add"
+            name=elegoo['name'], color=elegoo['color'],
+            volume=elegoo['volume'], count=30,
+            timestamp=init_date, type='add'
         ))
         db.commit()
-        update_all_snapshots_for_date(db, days[0])
 
-        black_left = 3
-        clear_left = 5
-        random.seed(42)
-        for i, day in enumerate(days):
-            # Black расходуем только если остались
-            if black_left > 0 and i < 12:
-                n = random.choices([0,1], [0.4,0.6])[0]
-                n = min(n, black_left)
-                for _ in range(n):
-                    b = Bottle(name=black_name, initial_volume=black_volume, current_volume=0, created_at=day)
-                    db.add(b)
-                    db.commit()
-                    db.add(OpeningEvent(bottle_id=b.id, timestamp=day, volume_used=black_volume))
-                    black_left -= 1
-                    # Сразу уменьшаем остаток: создаем InventoryEvent списания
-                    db.add(InventoryEvent(
-                        name=black_name, color=black_color, volume=black_volume, count=-1, timestamp=day, type="remove"
-                    ))
-                    db.commit()
-            # Clear расходуем всегда
-            if clear_left > 0:
-                n = random.choices([0,1,2], [0.2,0.6,0.2])[0]
-                n = min(n, clear_left)
-                for _ in range(n):
-                    b = Bottle(name=clear_name, initial_volume=clear_volume, current_volume=0, created_at=day)
-                    db.add(b)
-                    db.commit()
-                    db.add(OpeningEvent(bottle_id=b.id, timestamp=day, volume_used=clear_volume))
-                    clear_left -= 1
-                    db.add(InventoryEvent(
-                        name=clear_name, color=clear_color, volume=clear_volume, count=-1, timestamp=day, type="remove"
-                    ))
-                    db.commit()
-            # В день 15 Black закончилась, через 2 дня пополняем еще 2 Black
-            if i == 14:
+        # --- Ежедневный цикл: расход и снапшоты ---
+        current_date = init_date
+        while current_date <= last_date:
+            # Если в этот день были открытия SUNLU
+            used_today = consumption.get(current_date, 0)
+            for _ in range(used_today):
+                # создаём бутылку и событие открытия
+                b = Bottle(
+                    name=sunlu['name'],
+                    initial_volume=sunlu['volume'],
+                    current_volume=0,
+                    created_at=current_date
+                )
+                db.add(b)
+                db.commit()
+                db.add(OpeningEvent(
+                    bottle_id=b.id,
+                    timestamp=current_date,
+                    volume_used=sunlu['volume']
+                ))
+                # списание из инвентаря
                 db.add(InventoryEvent(
-                    name=black_name, color=black_color, volume=black_volume, count=2, timestamp=days[i+2], type="add"
+                    name=sunlu['name'], color=sunlu['color'],
+                    volume=sunlu['volume'], count=-1,
+                    timestamp=current_date, type='remove'
                 ))
                 db.commit()
-            # Сохраняем снапшот после всех операций за день
-            update_all_snapshots_for_date(db, day)
-        # В конце периода открываем одну Clear, но не тратим её (она в запасе)
-        last_clear_date = today + timedelta(days=1)
-        b = Bottle(name=clear_name, initial_volume=clear_volume, current_volume=clear_volume, created_at=last_clear_date)
-        db.add(b)
-        db.commit()
-        print("Demo data: непостоянный расход, Black заканчивается, потом пополняется, расход кратен бутылкам.")
 
-        # После всех операций, перед finally:
-        for snap in db.query(InventorySnapshot).filter(InventorySnapshot.date == today).all():
+            # Обновляем снапшот на каждый день, даже если расхода нет
+            update_all_snapshots_for_date(db, current_date)
+            current_date += timedelta(days=1)
+
+        # --- Перенос итоговых остатков в InventoryBottle ---
+        final_snaps = db.query(InventorySnapshot).filter(
+            InventorySnapshot.date == last_date
+        ).all()
+        for snap in final_snaps:
             db.add(InventoryBottle(
                 name=snap.name,
                 color=snap.color,
                 volume=snap.volume,
                 count=snap.count,
-                created_at=today
+                created_at=last_date
             ))
         db.commit()
+
+        print('DB заполнена с ежедневными снапшотами.')
     finally:
         db.close()
 
-if __name__ == "__main__":
-    seed_data()
+
+if __name__ == '__main__':
+    seed_data_from_csv('TRANSCENDENTAL_Shmigelskii - Consomation de résine.csv')

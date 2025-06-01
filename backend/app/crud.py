@@ -4,6 +4,8 @@ from typing import List, Optional
 from fastapi import HTTPException
 import logging
 from datetime import datetime
+from collections import defaultdict
+from datetime import timedelta
 
 logger = logging.getLogger("uvicorn")
 
@@ -247,4 +249,66 @@ def update_all_snapshots_today(db: Session):
             count=b.count,
             date=today
         )
-        create_or_update_snapshot(db, snap) 
+        create_or_update_snapshot(db, snap)
+
+def get_snapshots_with_carry_forward(db: Session, start_date, end_date):
+    """
+    Для каждого дня в диапазоне [start_date, end_date] и для каждой уникальной позиции (name, color, volume)
+    возвращает снапшот. Если на дату нет снапшота — берёт последний предыдущий (carry-forward).
+    Возвращает список InventorySnapshot (без id, т.к. виртуальные).
+    """
+    # Получаем все снапшоты за период и до start_date
+    all_snaps = db.query(models.InventorySnapshot).filter(
+        models.InventorySnapshot.date <= end_date
+    ).order_by(models.InventorySnapshot.name, models.InventorySnapshot.color, models.InventorySnapshot.volume, models.InventorySnapshot.date).all()
+
+    # Собираем уникальные позиции
+    positions = set((s.name, s.color, s.volume) for s in all_snaps)
+    
+    # Для каждой позиции строим список снапшотов по дате
+    snaps_by_pos = defaultdict(list)
+    for s in all_snaps:
+        key = (s.name, s.color, s.volume)
+        snaps_by_pos[key].append(s)
+
+    # Для быстрого поиска последнего снапшота на дату
+    last_snap_by_pos_and_date = defaultdict(dict)  # (pos) -> {date: snap}
+    for key, snaps in snaps_by_pos.items():
+        last = None
+        for s in snaps:
+            d = s.date.date() if hasattr(s.date, 'date') else s.date
+            last = s
+            last_snap_by_pos_and_date[key][d] = last
+
+    # Для каждой даты и позиции строим carry-forward снапшот
+    result = []
+    cur_date = start_date.date() if hasattr(start_date, 'date') else start_date
+    end_date_val = end_date.date() if hasattr(end_date, 'date') else end_date
+    days = []
+    while cur_date <= end_date_val:
+        days.append(cur_date)
+        cur_date += timedelta(days=1)
+    for day in days:
+        for pos in positions:
+            # Ищем снапшот на этот день или последний предыдущий
+            snap = None
+            # Прямо на этот день
+            if day in last_snap_by_pos_and_date[pos]:
+                snap = last_snap_by_pos_and_date[pos][day]
+            else:
+                # Ищем последний предыдущий
+                prev_days = [d for d in last_snap_by_pos_and_date[pos] if d <= day]
+                if prev_days:
+                    last_day = max(prev_days)
+                    snap = last_snap_by_pos_and_date[pos][last_day]
+            if snap:
+                # Возвращаем как виртуальный снапшот (без id)
+                result.append(schemas.InventorySnapshot(
+                    id=0,  # виртуальный
+                    name=snap.name,
+                    color=snap.color,
+                    volume=snap.volume,
+                    count=snap.count,
+                    date=day
+                ))
+    return result 

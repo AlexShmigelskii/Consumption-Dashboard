@@ -148,4 +148,4 @@ def read_snapshots(start_date: str, end_date: str, db: Session = Depends(get_db)
     # start_date, end_date: YYYY-MM-DD
     start = datetime.fromisoformat(start_date)
     end = datetime.fromisoformat(end_date)
-    return crud.get_snapshots_for_period(db, start, end) 
+    return crud.get_snapshots_with_carry_forward(db, start, end) 

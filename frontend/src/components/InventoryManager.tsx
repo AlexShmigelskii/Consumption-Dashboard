@@ -14,6 +14,7 @@ export function InventoryManager() {
   const [volume, setVolume] = useState('');
   const [count, setCount] = useState('1');
   const [error, setError] = useState<string | null>(null);
+  const [addCounts, setAddCounts] = useState<Record<string, string>>({});
 
   const { mutate: addBottle } = useMutation({
     mutationFn: (data: { name: string; color: string; volume: number; count: number }) =>
@@ -48,6 +49,20 @@ export function InventoryManager() {
       console.error('Delete mutation failed:', error);
     }
   });
+
+  const { mutate: addStock, isPending: isAdding } = useMutation({
+    mutationFn: ({ id, count }: { id: number; count: number }) => api.inventory.add(id, count),
+    onSuccess: (_data, vars) => {
+      queryClient.invalidateQueries({ queryKey: ['inventory'] });
+      queryClient.invalidateQueries({ queryKey: ['inventory_snapshots'] });
+      setAddCounts((prev) => ({ ...prev, [String(vars.id)]: '' }));
+    },
+    onError: () => {
+      setError('Error adding stock');
+    },
+  });
+
+  const [currentAddId, setCurrentAddId] = useState<number | null>(null);
 
   return (
     <div className="bg-white p-6 rounded-lg shadow-md max-w-xl mx-auto">
@@ -126,6 +141,7 @@ export function InventoryManager() {
               <th className="py-1">Volume</th>
               <th className="py-1">Count</th>
               <th></th>
+              <th></th>
             </tr>
           </thead>
           <tbody>
@@ -142,6 +158,37 @@ export function InventoryManager() {
                   >
                     Delete
                   </button>
+                </td>
+                <td>
+                  <form
+                    onSubmit={e => {
+                      e.preventDefault();
+                      const value = addCounts[String(bottle.id)];
+                      const n = parseInt(value || '0', 10);
+                      if (n > 0) {
+                        setCurrentAddId(bottle.id);
+                        addStock({ id: bottle.id, count: n });
+                      }
+                    }}
+                    className="flex gap-1 items-center"
+                  >
+                    <input
+                      type="number"
+                      min={1}
+                      className="w-14 border px-1 py-0.5 rounded text-sm"
+                      placeholder="Add"
+                      value={addCounts[String(bottle.id)] || ''}
+                      onChange={e => setAddCounts(prev => ({ ...prev, [String(bottle.id)]: e.target.value }))}
+                      disabled={isAdding && currentAddId === bottle.id}
+                    />
+                    <button
+                      type="submit"
+                      className="bg-green-600 text-white px-2 py-1 rounded text-sm disabled:opacity-50"
+                      disabled={isAdding && currentAddId === bottle.id}
+                    >
+                      Add
+                    </button>
+                  </form>
                 </td>
               </tr>
             ))}

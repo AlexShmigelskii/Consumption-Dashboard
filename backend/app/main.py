@@ -148,4 +148,25 @@ def read_snapshots(start_date: str, end_date: str, db: Session = Depends(get_db)
     # start_date, end_date: YYYY-MM-DD
     start = datetime.fromisoformat(start_date)
     end = datetime.fromisoformat(end_date)
-    return crud.get_snapshots_with_carry_forward(db, start, end) 
+    return crud.get_snapshots_with_carry_forward(db, start, end)
+
+@app.post("/inventory/{bottle_id}/add", response_model=schemas.InventoryBottle)
+def add_inventory_bottle(bottle_id: int, count: int, db: Session = Depends(get_db)):
+    if count < 1:
+        raise HTTPException(status_code=400, detail="Count must be positive")
+    db_bottle = db.query(models.InventoryBottle).filter(models.InventoryBottle.id == bottle_id).first()
+    if not db_bottle:
+        raise HTTPException(status_code=404, detail="Inventory bottle not found")
+    db_bottle.count += count
+    db.commit()
+    # Логируем пополнение
+    event = schemas.InventoryEventCreate(
+        name=db_bottle.name,
+        color=db_bottle.color,
+        volume=db_bottle.volume,
+        count=count,
+        type="add"
+    )
+    crud.create_inventory_event(db, event)
+    db.refresh(db_bottle)
+    return db_bottle 

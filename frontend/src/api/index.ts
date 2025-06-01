@@ -59,6 +59,10 @@ export const api = {
     open: async (id: number) => {
       await axios.post(`${API_URL}/inventory/${id}/open`);
     },
+    add: async (id: number, count: number) => {
+      const response = await axios.post<InventoryBottle>(`${API_URL}/inventory/${id}/add`, null, { params: { count } });
+      return response.data;
+    },
   },
 
   inventory_snapshots: {

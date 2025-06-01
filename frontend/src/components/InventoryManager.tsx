@@ -175,7 +175,7 @@ export function InventoryManager() {
                     <input
                       type="number"
                       min={1}
-                      className="w-14 border px-1 py-0.5 rounded text-sm"
+                      className="w-14 border px-1 py-0.5 rounded text-sm bg-white"
                       placeholder="Add"
                       value={addCounts[String(bottle.id)] || ''}
                       onChange={e => setAddCounts(prev => ({ ...prev, [String(bottle.id)]: e.target.value }))}

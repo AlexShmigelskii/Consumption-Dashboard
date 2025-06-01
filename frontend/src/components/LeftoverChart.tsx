@@ -41,13 +41,14 @@ export function LeftoverChart({ selectedName }: Props) {
     if (selectedName !== 'All') {
       snaps = snaps.filter(s => s.name === selectedName);
     }
-    const leftover = snaps.reduce((sum, s) => sum + s.count * s.volume, 0);
+    // Остаток в литрах
+    const leftover = snaps.reduce((sum, s) => sum + s.count * s.volume, 0) / 1000;
     return { date, leftover };
   });
 
   return (
     <div className="w-full bg-white rounded-lg shadow border p-4">
-      <h2 className="text-2xl font-semibold text-gray-900 mb-2">Leftover (Stock Dynamics)</h2>
+      <h2 className="text-2xl font-semibold text-gray-900 mb-2">Leftover (Stock Dynamics, L)</h2>
       <div className="h-[420px]">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={dayData} margin={{ top: 16, right: 32, left: 16, bottom: 32 }}>
@@ -57,8 +58,10 @@ export function LeftoverChart({ selectedName }: Props) {
               tick={{ fontSize: 16 }}
               domain={[0, 'auto']}
               allowDataOverflow={false}
+              label={{ value: 'Liters', angle: -90, position: 'insideLeft', fontSize: 16 }}
+              tickFormatter={(v) => v.toFixed(2)}
             />
-            <Tooltip />
+            <Tooltip formatter={(value: number) => `${Number(value).toFixed(2)} L`} />
             <Line
               type="monotone"
               dataKey="leftover"

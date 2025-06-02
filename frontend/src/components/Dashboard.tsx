@@ -4,6 +4,7 @@ import { api } from '../api';
 import { wsClient } from '../api/websocket';
 import { ConsumptionChart } from './ConsumptionChart';
 import { LeftoverChart } from './LeftoverChart';
+import './Dashboard.css';
 
 export function Dashboard() {
   const queryClient = useQueryClient();
@@ -43,7 +44,7 @@ export function Dashboard() {
       queryClient.invalidateQueries({ queryKey: ['inventory_snapshots'] });
       setOpenError(null);
     },
-    onError: (e: any) => setOpenError(e?.response?.data?.detail || 'No bottles left in inventory'),
+    onError: (e: any) => setOpenError(e?.response?.data?.detail || 'Plus de bouteilles en stock'),
   });
 
   if (isLoading) {
@@ -57,7 +58,7 @@ export function Dashboard() {
   if (error) {
     return (
       <div className="flex items-center justify-center h-screen">
-        <div className="text-red-600">Error loading data. Please try again later.</div>
+        <div className="text-red-600">Erreur de chargement des données. Veuillez réessayer plus tard.</div>
       </div>
     );
   }
@@ -106,100 +107,90 @@ export function Dashboard() {
     : Infinity;
 
   return (
-    <div className="w-screen px-2 lg:px-4 py-8 flex flex-col gap-8 overflow-x-hidden">
-      {/* Tabs */}
-      <div className="flex gap-4">
+    <div className="dashboard">
+      <div className="dashboard-tabs">
         <button
-          className={`px-4 py-2 rounded ${tab === 'leftover' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-900'}`}
+          className={`dashboard-tab ${tab === 'leftover' ? 'active' : 'inactive'}`}
           onClick={() => setTab('leftover')}
         >
-          Leftover
+          Stock Restant
         </button>
         <button
-          className={`px-4 py-2 rounded ${tab === 'consumption' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-900'}`}
+          className={`dashboard-tab ${tab === 'consumption' ? 'active' : 'inactive'}`}
           onClick={() => setTab('consumption')}
         >
-          Consumption
+          Consommation
         </button>
       </div>
 
-      {/* Filter */}
-      <div className="flex gap-4 items-center">
-        <label className="text-gray-700 font-medium">Bottle:</label>
+      <div className="dashboard-filter">
+        <label>Bouteille:</label>
         <select
-          className="border px-2 py-1 rounded bg-white text-gray-900"
           value={selectedBottle}
           onChange={e => setSelectedBottle(e.target.value)}
         >
-          <option value="All">All</option>
+          <option value="All">Toutes</option>
           {Array.from(new Set([...bottles.map(b => b.name), ...inventory.map(b => b.name)])).map(name => (
             <option key={name} value={name}>{name}</option>
           ))}
         </select>
       </div>
 
-      {/* Chart + Inventory */}
-      <div className="flex gap-8 overflow-x-hidden">
-        {/* Chart: flex-grow with min-width 0 to prevent overflow */}
-        <div className="flex-1 min-w-0">
-          <div className="h-[66vh] w-full">
-            {tab === 'leftover' ? (
-              <LeftoverChart selectedName={selectedBottle} />
-            ) : (
-              <ConsumptionChart events={filteredEvents} />
-            )}
-          </div>
+      <div className="dashboard-main">
+        <div className="dashboard-chart">
+          {tab === 'leftover' ? (
+            <LeftoverChart selectedName={selectedBottle} />
+          ) : (
+            <ConsumptionChart events={filteredEvents} />
+          )}
         </div>
-        {/* Inventory: fixed width, no shrink */}
-        <div className="w-80 flex-shrink-0 min-w-0 bg-white rounded-lg shadow p-4 border">
-          <h2 className="text-lg font-bold mb-4">Inventory</h2>
-          {openError && <div className="mb-2 text-red-600 font-medium">{openError}</div>}
-          <ul className="space-y-2">
+        
+        <div className="dashboard-inventory">
+          <h2>Inventaire</h2>
+          {openError && <div className="dashboard-inventory-error">{openError}</div>}
+          <div className="dashboard-inventory-list">
             {inventory.map(bottle => (
-              <li key={bottle.id} className="flex justify-between items-center border-b pb-1">
+              <div key={bottle.id} className="dashboard-inventory-item">
                 <span>{bottle.name} — {bottle.volume} ml</span>
                 <button
-                  className="bg-green-600 text-white px-3 py-1 rounded text-sm disabled:opacity-50"
+                  className="dashboard-inventory-button"
                   disabled={bottle.count < 1 || openBottleMutation.isPending}
                   onClick={() => openBottleMutation.mutate(bottle.id)}
                 >
-                  Open
+                  Ouvrir
                 </button>
-              </li>
+              </div>
             ))}
-          </ul>
+          </div>
         </div>
       </div>
 
-      {/* Statistics */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-6 bg-white rounded-lg shadow p-6">
-        <div>
-          <div className="text-sm text-gray-500">Current Month Usage</div>
-          <div className="text-2xl font-bold">{(currentMonthUsage / 1000).toFixed(2)} L</div>
+      <div className="dashboard-stats">
+        <div className="dashboard-stat">
+          <div className="dashboard-stat-label">Consommation du Mois</div>
+          <div className="dashboard-stat-value">{(currentMonthUsage / 1000).toFixed(2)} L</div>
         </div>
-        <div>
-          <div className="text-sm text-gray-500">Bottles Opened</div>
-          <div className="text-2xl font-bold">{bottlesOpened}</div>
+        <div className="dashboard-stat">
+          <div className="dashboard-stat-label">Bouteilles Ouvertes</div>
+          <div className="dashboard-stat-value">{bottlesOpened}</div>
         </div>
-        <div>
-          <div className="text-sm text-gray-500">Remaining Stock</div>
-          <div className="text-2xl font-bold">{(remainingStock / 1000).toFixed(1)} L</div>
+        <div className="dashboard-stat">
+          <div className="dashboard-stat-label">Stock Restant</div>
+          <div className="dashboard-stat-value">{(remainingStock / 1000).toFixed(1)} L</div>
           {dailyAverage > 0 && (
-            <div className={`text-xs ${
-              monthsLeft < 1 ? 'text-red-500' : 'text-gray-400'
-            }`}>
-              Sufficient for ~{
+            <div className={`dashboard-stat-subtext ${monthsLeft < 1 ? 'dashboard-stat-warning' : ''}`}>
+              Suffisant pour ~{
                 monthsLeft < 1
-                  ? 'less than a month'
-                  : `${monthsLeft.toFixed(1)} months`
+                  ? 'moins d\'un mois'
+                  : `${monthsLeft.toFixed(1)} mois`
               }
             </div>
           )}
         </div>
-        <div>
-          <div className="text-sm text-gray-500">Daily Average</div>
-          <div className="text-2xl font-bold">{Math.round(dailyAverage)} ml</div>
-          <div className="text-xs text-gray-400">(last 90 days)</div>
+        <div className="dashboard-stat">
+          <div className="dashboard-stat-label">Moyenne Quotidienne</div>
+          <div className="dashboard-stat-value">{Math.round(dailyAverage)} ml</div>
+          <div className="dashboard-stat-subtext">(90 derniers jours)</div>
         </div>
       </div>
     </div>

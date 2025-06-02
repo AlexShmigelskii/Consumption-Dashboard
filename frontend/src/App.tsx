@@ -21,20 +21,20 @@ function App() {
         <header className="bg-white shadow-sm">
           <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
             <h1 className="text-2xl font-bold text-gray-900">
-              Consumption Dashboard
+              Tableau de Bord de Consommation
             </h1>
             <nav className="flex gap-4">
               <button
                 className={`px-3 py-1 rounded ${page === 'dashboard' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-900'}`}
                 onClick={() => setPage('dashboard')}
               >
-                Dashboard
+                Tableau de Bord
               </button>
               <button
                 className={`px-3 py-1 rounded ${page === 'inventory' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-900'}`}
                 onClick={() => setPage('inventory')}
               >
-                Inventory
+                Inventaire
               </button>
             </nav>
           </div>

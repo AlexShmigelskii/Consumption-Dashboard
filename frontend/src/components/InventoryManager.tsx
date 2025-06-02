@@ -28,9 +28,8 @@ export function InventoryManager() {
       setError(null);
     },
     onError: (e: any) => {
-      const message = e?.response?.data?.detail || 'Error adding bottle';
+      const message = e?.response?.data?.detail || 'Erreur lors de l\'ajout de la bouteille';
       setError(message);
-      // Scroll error into view
       window.scrollTo({ top: 0, behavior: 'smooth' });
     },
   });
@@ -58,22 +57,22 @@ export function InventoryManager() {
       setAddCounts((prev) => ({ ...prev, [String(vars.id)]: '' }));
     },
     onError: () => {
-      setError('Error adding stock');
+      setError('Erreur lors de l\'ajout du stock');
     },
   });
 
   const [currentAddId, setCurrentAddId] = useState<number | null>(null);
 
   return (
-    <div className="bg-white p-6 rounded-lg shadow-md max-w-xl mx-auto">
-      <h2 className="text-xl font-bold mb-4">Inventory</h2>
+    <div className="bg-white p-6 rounded-lg shadow-md max-w-4xl mx-auto mt-6">
+      <h2 className="text-xl font-bold mb-6">Inventaire</h2>
       {error && (
         <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded text-red-700">
           {error}
         </div>
       )}
       <form
-        className="flex flex-wrap gap-2 mb-4 items-end"
+        className="flex flex-wrap gap-3 mb-6 items-end"
         onSubmit={e => {
           e.preventDefault();
           if (!name || !volume || !count) return;
@@ -81,20 +80,20 @@ export function InventoryManager() {
         }}
       >
         <div className="flex flex-col">
-          <label className="text-sm text-gray-700 mb-1">Name</label>
+          <label className="text-sm text-gray-700 mb-1">Nom</label>
           <input
-            className="border px-2 py-1 rounded w-36 bg-white text-gray-900 placeholder-gray-400"
-            placeholder="Bottle name"
+            className="border px-2 py-1 rounded w-48 bg-white text-gray-900 placeholder-gray-400"
+            placeholder="Nom de la bouteille"
             value={name}
             onChange={e => setName(e.target.value)}
             required
           />
         </div>
         <div className="flex flex-col">
-          <label className="text-sm text-gray-700 mb-1">Color</label>
+          <label className="text-sm text-gray-700 mb-1">Couleur</label>
           <input
-            className="border px-2 py-1 rounded w-28 bg-white text-gray-900 placeholder-gray-400"
-            placeholder="Color"
+            className="border px-2 py-1 rounded w-36 bg-white text-gray-900 placeholder-gray-400"
+            placeholder="Couleur"
             value={color}
             onChange={e => setColor(e.target.value)}
           />
@@ -102,7 +101,7 @@ export function InventoryManager() {
         <div className="flex flex-col">
           <label className="text-sm text-gray-700 mb-1">Volume (ml)</label>
           <input
-            className="border px-2 py-1 rounded w-24 bg-white text-gray-900 placeholder-gray-400"
+            className="border px-2 py-1 rounded w-28 bg-white text-gray-900 placeholder-gray-400"
             placeholder="Volume"
             type="number"
             min={1}
@@ -112,10 +111,10 @@ export function InventoryManager() {
           />
         </div>
         <div className="flex flex-col">
-          <label className="text-sm text-gray-700 mb-1">Count</label>
+          <label className="text-sm text-gray-700 mb-1">Quantité</label>
           <input
-            className="border px-2 py-1 rounded w-16 bg-white text-gray-900 placeholder-gray-400"
-            placeholder="Count"
+            className="border px-2 py-1 rounded w-20 bg-white text-gray-900 placeholder-gray-400"
+            placeholder="Qté"
             type="number"
             min={1}
             value={count}
@@ -127,73 +126,75 @@ export function InventoryManager() {
           className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
           type="submit"
         >
-          Add
+          Ajouter
         </button>
       </form>
       {isLoading ? (
-        <div>Loading...</div>
+        <div>Chargement...</div>
       ) : (
-        <table className="w-full text-left border-t">
-          <thead>
-            <tr className="text-gray-600">
-              <th className="py-1">Name</th>
-              <th className="py-1">Color</th>
-              <th className="py-1">Volume</th>
-              <th className="py-1">Count</th>
-              <th></th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {inventory.map(bottle => (
-              <tr key={bottle.id} className="border-b hover:bg-gray-50">
-                <td className="py-1">{bottle.name}</td>
-                <td className="py-1">{bottle.color || '-'}</td>
-                <td className="py-1">{bottle.volume} ml</td>
-                <td className="py-1">{bottle.count}</td>
-                <td>
-                  <button
-                    className="text-red-500 hover:underline text-sm"
-                    onClick={() => deleteBottle(bottle.id)}
-                  >
-                    Delete
-                  </button>
-                </td>
-                <td>
-                  <form
-                    onSubmit={e => {
-                      e.preventDefault();
-                      const value = addCounts[String(bottle.id)];
-                      const n = parseInt(value || '0', 10);
-                      if (n > 0) {
-                        setCurrentAddId(bottle.id);
-                        addStock({ id: bottle.id, count: n });
-                      }
-                    }}
-                    className="flex gap-1 items-center"
-                  >
-                    <input
-                      type="number"
-                      min={1}
-                      className="w-14 border px-1 py-0.5 rounded text-sm bg-white"
-                      placeholder="Add"
-                      value={addCounts[String(bottle.id)] || ''}
-                      onChange={e => setAddCounts(prev => ({ ...prev, [String(bottle.id)]: e.target.value }))}
-                      disabled={isAdding && currentAddId === bottle.id}
-                    />
-                    <button
-                      type="submit"
-                      className="bg-green-600 text-white px-2 py-1 rounded text-sm disabled:opacity-50"
-                      disabled={isAdding && currentAddId === bottle.id}
-                    >
-                      Add
-                    </button>
-                  </form>
-                </td>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-t">
+            <thead>
+              <tr className="text-gray-600">
+                <th className="py-2 pr-4">Nom</th>
+                <th className="py-2 pr-4">Couleur</th>
+                <th className="py-2 pr-4">Volume</th>
+                <th className="py-2 pr-4">Quantité</th>
+                <th className="py-2 w-20"></th>
+                <th className="py-2 w-32"></th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {inventory.map(bottle => (
+                <tr key={bottle.id} className="border-b hover:bg-gray-50">
+                  <td className="py-2 pr-4">{bottle.name}</td>
+                  <td className="py-2 pr-4">{bottle.color || '-'}</td>
+                  <td className="py-2 pr-4">{bottle.volume} ml</td>
+                  <td className="py-2 pr-4">{bottle.count}</td>
+                  <td className="py-2">
+                    <button
+                      className="text-red-500 hover:underline text-sm"
+                      onClick={() => deleteBottle(bottle.id)}
+                    >
+                      Sup
+                    </button>
+                  </td>
+                  <td className="py-2">
+                    <form
+                      onSubmit={e => {
+                        e.preventDefault();
+                        const value = addCounts[String(bottle.id)];
+                        const n = parseInt(value || '0', 10);
+                        if (n > 0) {
+                          setCurrentAddId(bottle.id);
+                          addStock({ id: bottle.id, count: n });
+                        }
+                      }}
+                      className="flex gap-1 items-center"
+                    >
+                      <input
+                        type="number"
+                        min={1}
+                        className="w-16 border px-2 py-1 rounded text-sm bg-white"
+                        placeholder="Qté"
+                        value={addCounts[String(bottle.id)] || ''}
+                        onChange={e => setAddCounts(prev => ({ ...prev, [String(bottle.id)]: e.target.value }))}
+                        disabled={isAdding && currentAddId === bottle.id}
+                      />
+                      <button
+                        type="submit"
+                        className="bg-green-600 text-white px-2 py-1 rounded text-sm disabled:opacity-50"
+                        disabled={isAdding && currentAddId === bottle.id}
+                      >
+                        +
+                      </button>
+                    </form>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );

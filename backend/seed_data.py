@@ -82,10 +82,10 @@ def seed_data_from_csv(csv_path: str):
         total_consumed = sum(consumption.values())
 
         # --- Приход на начальную дату ---
-        # SUNLU: добавлено 38 бутылок (30 использовано + 8 осталось)
+        # SUNLU: добавлено 38 бутылок (33 использовано + 5 осталось)
         db.add(InventoryEvent(
             name=sunlu['name'], color=sunlu['color'],
-            volume=sunlu['volume'], count=total_consumed + 8,
+            volume=sunlu['volume'], count=total_consumed + 5,
             timestamp=init_date, type='add'
         ))
         # ELEGOO: добавлено 30 бутылок, не использовались
